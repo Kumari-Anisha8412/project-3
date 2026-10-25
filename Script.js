@@ -1,481 +1,875 @@
-/**
- * ProChronos - Precision Stopwatch & Lap Timer
- * High-precision timing, circular progress visualization, lap analysis,
- * Web Audio feedback, and keyboard shortcuts.
- */
+/* ==========================================================================
+   DevQuiz Pro - Modern Web Development Interactive Quiz Engine
+   Features: Real-time Timer, Streak Bonus, Sound FX (Web Audio API),
+             Canvas Confetti, Educational Explanations & Review Mode.
+   ========================================================================== */
 
-// DOM Elements
-const mainTimeDisplay = document.getElementById("mainTime");
-const msDigitsDisplay = document.getElementById("msDigits");
-const startPauseBtn = document.getElementById("startPauseBtn");
-const startPauseText = document.getElementById("startPauseText");
-const playIcon = document.getElementById("playIcon");
-const pauseIcon = document.getElementById("pauseIcon");
-const lapBtn = document.getElementById("lapBtn");
-const resetBtn = document.getElementById("resetBtn");
-const progressCircle = document.getElementById("progressCircle");
-const statusBadge = document.getElementById("statusBadge");
-const statusText = document.getElementById("statusText");
+// 1. Comprehensive Question Bank
+const questions = [
+    {
+        id: 1,
+        type: "single",
+        category: "HTML5",
+        question: "HTML ka full form kya hai?",
+        options: [
+            "Hyper Text Markup Language",
+            "High Text Machine Language",
+            "Hyper Transfer Markup Language",
+            "Home Tool Markup Language"
+        ],
+        answer: [0],
+        explanation: "HTML stands for 'Hyper Text Markup Language'. Yeh web pages create karne aur content structure define karne ke liye standard language hai."
+    },
+    {
+        id: 2,
+        type: "single",
+        category: "CSS3",
+        question: "CSS me kisi element ko screen ke center me align karne ka modern tarika kaun sa hai?",
+        codeSnippet: "display: flex;\njustify-content: center;\nalign-items: center;",
+        options: [
+            "margin: auto float: center;",
+            "display: flex; justify-content: center; align-items: center;",
+            "align: center; text-center: true;",
+            "padding: 50% center;"
+        ],
+        answer: [1],
+        explanation: "Flexbox me 'display: flex', 'justify-content: center' (horizontal) aur 'align-items: center' (vertical) use karke element ko perfect center me align kiya jata hai."
+    },
+    {
+        id: 3,
+        type: "multiple",
+        category: "Web Tech",
+        question: "Inmein se kaun-kaun se core Web Technologies hain? (Select all correct answers)",
+        options: [
+            "HTML (Structure)",
+            "CSS (Styling & Design)",
+            "JavaScript (Interactivity & Logic)",
+            "MS Paint (Image Viewer)"
+        ],
+        answer: [0, 1, 2],
+        explanation: "HTML, CSS aur JavaScript web development ke 3 fundamental pillars hain. MS Paint ek basic graphics utility tool hai."
+    },
+    {
+        id: 4,
+        type: "blank",
+        category: "JavaScript",
+        question: "JavaScript file ka standard file extension kya hota hai?",
+        answer: ["js", ".js"],
+        explanation: "JavaScript files ko '.js' extension ke sath save kiya jata hai, jaise 'script.js' ya 'app.js'."
+    },
+    {
+        id: 5,
+        type: "single",
+        category: "JavaScript",
+        question: "Niche diye gaye code ka output kya hoga?",
+        codeSnippet: "console.log(typeof NaN);",
+        options: [
+            "\"undefined\"",
+            "\"number\"",
+            "\"NaN\"",
+            "\"object\""
+        ],
+        answer: [1],
+        explanation: "JavaScript me 'NaN' (Not-a-Number) ka type technically 'number' hota hai, jo IEEE 754 floating-point standard ka hissa hai."
+    },
+    {
+        id: 6,
+        type: "single",
+        category: "Web Tech",
+        question: "Website ka basic structure aur skeleton kis se banta hai?",
+        options: [
+            "HTML",
+            "Python",
+            "Microsoft Excel",
+            "SQL Database"
+        ],
+        answer: [0],
+        explanation: "HTML (Hyper Text Markup Language) kisi bhi website ke structure, headings, paragraphs aur layout ka blueprint banta hai."
+    },
+    {
+        id: 7,
+        type: "single",
+        category: "CSS3",
+        question: "CSS me Responsive Web Design banane ke liye kis rule ka use kiya jata hai?",
+        codeSnippet: "@media (max-width: 768px) {\n  .container { width: 100%; }\n}",
+        options: [
+            "@screen-size",
+            "@media queries",
+            "@viewport-change",
+            "@responsive-rule"
+        ],
+        answer: [1],
+        explanation: "@media queries ke zariye hum different device widths (mobile, tablet, desktop) ke hisab se responsive styles apply karte hain."
+    },
+    {
+        id: 8,
+        type: "blank",
+        category: "HTML5",
+        question: "External CSS file ko HTML document se jodane (link) ke liye kaun sa tag use hota hai?",
+        answer: ["<link>", "link", "<link/>"],
+        explanation: "HTML me <link rel=\"stylesheet\" href=\"style.css\"> tag ko <head> section me include karke external stylesheet load ki jati hai."
+    }
+];
 
-// Lap & Stats Elements
-const lapList = document.getElementById("lapList");
-const lapEmptyState = document.getElementById("lapEmptyState");
-const lapCountBadge = document.getElementById("lapCountBadge");
-const lapStatsSection = document.getElementById("lapStatsSection");
-const fastestLapVal = document.getElementById("fastestLapVal");
-const fastestLapNo = document.getElementById("fastestLapNo");
-const slowestLapVal = document.getElementById("slowestLapVal");
-const slowestLapNo = document.getElementById("slowestLapNo");
-const avgLapVal = document.getElementById("avgLapVal");
-const copyLapsBtn = document.getElementById("copyLapsBtn");
-const clearLapsBtn = document.getElementById("clearLapsBtn");
-const currentLapPreview = document.getElementById("currentLapPreview");
-const currentLapIndex = document.getElementById("currentLapIndex");
-const currentLapTime = document.getElementById("currentLapTime");
+// 2. Sound Effects Engine (Native Web Audio API)
+class SoundEffects {
+    constructor() {
+        this.ctx = null;
+        this.enabled = localStorage.getItem("devquiz_sound") !== "false";
+    }
 
-// Sound Elements
-const soundToggleBtn = document.getElementById("soundToggleBtn");
-const soundOnIcon = document.getElementById("soundOnIcon");
-const soundOffIcon = document.getElementById("soundOffIcon");
-const toast = document.getElementById("toast");
-
-// Stopwatch State
-let startTime = 0;
-let elapsedTime = 0;
-let animationFrameId = null;
-let isRunning = false;
-
-// Lap State
-// Each lap: { id, lapTime, totalTime }
-let laps = [];
-let lastLapTimestamp = 0;
-
-// Circular Progress Configuration
-const RING_CIRCUMFERENCE = 816.81; // 2 * PI * 130
-progressCircle.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
-progressCircle.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
-
-// Web Audio API Sound Synthesizer
-let audioCtx = null;
-let isMuted = localStorage.getItem("prochronos_muted") === "true";
-
-function initAudio() {
-    if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-            audioCtx = new AudioContextClass();
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.ctx = new AudioContext();
+            }
+        }
+        if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume();
         }
     }
-    if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume();
+
+    toggle() {
+        this.enabled = !this.enabled;
+        localStorage.setItem("devquiz_sound", this.enabled);
+        return this.enabled;
+    }
+
+    playTone(freq, duration, type = "sine", gainVal = 0.1) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+            gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {
+            // Graceful fallback
+        }
+    }
+
+    click() {
+        this.playTone(600, 0.05, "sine", 0.05);
+    }
+
+    correct() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        // Pleasant ascending chord
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+            setTimeout(() => {
+                this.playTone(freq, 0.18, "triangle", 0.08);
+            }, idx * 60);
+        });
+    }
+
+    wrong() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        // Descending low buzzer
+        this.playTone(280, 0.15, "sawtooth", 0.06);
+        setTimeout(() => {
+            this.playTone(220, 0.25, "sawtooth", 0.06);
+        }, 120);
+    }
+
+    fanfare() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const melody = [
+            { f: 523.25, d: 0.12 }, // C
+            { f: 659.25, d: 0.12 }, // E
+            { f: 783.99, d: 0.12 }, // G
+            { f: 1046.5, d: 0.35 }  // High C
+        ];
+        melody.forEach((note, idx) => {
+            setTimeout(() => {
+                this.playTone(note.f, note.d, "triangle", 0.1);
+            }, idx * 110);
+        });
     }
 }
 
-function playSound(type) {
-    if (isMuted) return;
-    try {
-        initAudio();
-        if (!audioCtx) return;
+const sfx = new SoundEffects();
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+// 3. Quiz State
+const QUESTION_TIME_LIMIT = 25; // 25 seconds per question
+let currentQuestionIndex = 0;
+let userAnswers = []; // Indexes for current question
+let totalScore = 0;
+let correctCount = 0;
+let currentStreak = 0;
+let maxStreak = 0;
+let timer = null;
+let timeLeft = QUESTION_TIME_LIMIT;
+let isAnswerConfirmed = false;
+let quizStartTime = 0;
+let quizHistory = []; // Stores user result history for review
 
-        const now = audioCtx.currentTime;
+// 4. DOM Elements
+const soundBtn = document.getElementById("sound-btn");
+const soundOnIcon = document.getElementById("sound-on-icon");
+const soundOffIcon = document.getElementById("sound-off-icon");
 
-        if (type === "start") {
-            // Crisp high beep
-            osc.frequency.setValueAtTime(587.33, now); // D5
-            osc.frequency.exponentialRampToValueAtTime(880, now + 0.08); // A5
-            gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-        } else if (type === "pause") {
-            // Descending tone
-            osc.frequency.setValueAtTime(659.25, now); // E5
-            osc.frequency.exponentialRampToValueAtTime(440, now + 0.08); // A4
-            gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-        } else if (type === "lap") {
-            // Double click tick
-            osc.frequency.setValueAtTime(1046.5, now); // C6
-            gain.gain.setValueAtTime(0.15, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-            osc.start(now);
-            osc.stop(now + 0.05);
-        } else if (type === "reset") {
-            // Low confirmation chime
-            osc.frequency.setValueAtTime(329.63, now); // E4
-            gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-            osc.start(now);
-            osc.stop(now + 0.15);
-        }
-    } catch (e) {
-        // Audio might fail if user hasn't interacted with document yet
-    }
-}
+const questionNumberEl = document.getElementById("question-number");
+const progressBarEl = document.getElementById("progress-bar");
+const liveScoreEl = document.getElementById("live-score");
+const streakCounterEl = document.getElementById("streak-counter");
 
-// Update Sound Toggle UI
+const timerPill = document.getElementById("timer-pill");
+const timerSecondsEl = document.getElementById("timer-seconds");
+const timerRingProgress = document.getElementById("timer-ring-progress");
+
+const categoryBadge = document.getElementById("category-badge");
+const typeBadge = document.getElementById("type-badge");
+const questionTitle = document.getElementById("question");
+const codeSnippetContainer = document.getElementById("code-snippet-container");
+const codeSnippetEl = document.getElementById("code-snippet");
+const optionsContainer = document.getElementById("options");
+
+const textAnswerContainer = document.getElementById("text-answer-container");
+const textAnswerInput = document.getElementById("text-answer");
+const textSubmitBtn = document.getElementById("text-submit-btn");
+
+const feedbackBox = document.getElementById("feedback-box");
+const feedbackIcon = document.getElementById("feedback-icon");
+const feedbackTitle = document.getElementById("feedback-title");
+const feedbackExplanation = document.getElementById("feedback-explanation");
+
+const messageEl = document.getElementById("message");
+const nextBtn = document.getElementById("next-btn");
+const nextBtnText = document.getElementById("next-btn-text");
+
+// Result DOM
+const questionSection = document.getElementById("question-section");
+const quizHud = document.getElementById("quiz-hud");
+const resultSection = document.getElementById("result");
+const resultTrophy = document.getElementById("result-trophy");
+const resultHeadline = document.getElementById("result-headline");
+const resultTagline = document.getElementById("result-tagline");
+
+const scoreSvgBar = document.getElementById("score-svg-bar");
+const scorePercentageNum = document.getElementById("score-percentage");
+const finalPointsEl = document.getElementById("final-points");
+const finalCorrectEl = document.getElementById("final-correct");
+const finalStreakEl = document.getElementById("final-streak");
+const finalTimeEl = document.getElementById("final-time");
+
+const toggleReviewBtn = document.getElementById("toggle-review-btn");
+const reviewContainer = document.getElementById("review-container");
+const reviewArrow = document.getElementById("review-arrow");
+const restartBtn = document.getElementById("restart-btn");
+const shareBtn = document.getElementById("share-btn");
+const toastEl = document.getElementById("toast");
+
+// 5. Sound Button Setup
 function updateSoundUI() {
-    if (isMuted) {
-        soundOnIcon.classList.add("hidden");
-        soundOffIcon.classList.remove("hidden");
-        soundToggleBtn.setAttribute("title", "Sound Muted (M to unmute)");
-    } else {
+    if (sfx.enabled) {
         soundOnIcon.classList.remove("hidden");
         soundOffIcon.classList.add("hidden");
-        soundToggleBtn.setAttribute("title", "Sound Enabled (M to mute)");
+        soundBtn.setAttribute("title", "Mute Sound (M)");
+    } else {
+        soundOnIcon.classList.add("hidden");
+        soundOffIcon.classList.remove("hidden");
+        soundBtn.setAttribute("title", "Unmute Sound (M)");
     }
 }
 updateSoundUI();
 
-soundToggleBtn.addEventListener("click", () => {
-    isMuted = !isMuted;
-    localStorage.setItem("prochronos_muted", isMuted);
+soundBtn.addEventListener("click", () => {
+    sfx.toggle();
     updateSoundUI();
-    showToast(isMuted ? "Sound Muted" : "Sound Enabled");
+    showToast(sfx.enabled ? "Sound: ON 🔊" : "Sound: Muted 🔇");
 });
 
-// Toast notification helper
-let toastTimeout = null;
-function showToast(message) {
-    if (toastTimeout) clearTimeout(toastTimeout);
-    toast.textContent = message;
-    toast.classList.remove("hidden");
-    toastTimeout = setTimeout(() => {
-        toast.classList.add("hidden");
-    }, 2000);
-}
+// 6. Timer Mechanics
+const TIMER_CIRCUMFERENCE = 97.4; // 2 * Math.PI * 15.5
 
-// Format time utility: returns { main: "HH:MM:SS", ms: "MS", full: "HH:MM:SS.MS" }
-function formatTime(msTotal) {
-    const totalMs = Math.max(0, Math.floor(msTotal));
-    const hours = Math.floor(totalMs / 3600000);
-    const minutes = Math.floor((totalMs % 3600000) / 60000);
-    const seconds = Math.floor((totalMs % 60000) / 1000);
-    const hundredths = Math.floor((totalMs % 1000) / 10);
-
-    const hh = String(hours).padStart(2, "0");
-    const mm = String(minutes).padStart(2, "0");
-    const ss = String(seconds).padStart(2, "0");
-    const ms = String(hundredths).padStart(2, "0");
-
-    return {
-        main: `${hh}:${mm}:${ss}`,
-        ms: ms,
-        full: `${hh}:${mm}:${ss}.${ms}`,
-        short: `${mm}:${ss}.${ms}`
-    };
-}
-
-// Render Timer Display & Progress Ring
-function renderDisplay() {
-    const currentTotal = isRunning 
-        ? elapsedTime + (performance.now() - startTime) 
-        : elapsedTime;
-
-    const formatted = formatTime(currentTotal);
-    mainTimeDisplay.textContent = formatted.main;
-    msDigitsDisplay.textContent = formatted.ms;
-
-    // Current lap preview calculation
-    const currentLapDuration = currentTotal - lastLapTimestamp;
-    currentLapTime.textContent = formatTime(currentLapDuration).short;
-
-    // Progress Ring: smooth 60-second sweep
-    const totalSecondsFraction = (currentTotal % 60000) / 60000;
-    const offset = RING_CIRCUMFERENCE - (totalSecondsFraction * RING_CIRCUMFERENCE);
-    progressCircle.style.strokeDashoffset = `${offset}`;
-
-    if (isRunning) {
-        animationFrameId = requestAnimationFrame(renderDisplay);
-    }
-}
-
-// Start Timer
 function startTimer() {
-    if (isRunning) return;
-    initAudio();
+    clearInterval(timer);
+    timeLeft = QUESTION_TIME_LIMIT;
+    updateTimerDisplay();
 
-    isRunning = true;
-    startTime = performance.now();
-    animationFrameId = requestAnimationFrame(renderDisplay);
+    timer = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
 
-    // Update UI states
-    startPauseBtn.classList.add("is-running");
-    startPauseText.textContent = "Pause";
-    playIcon.classList.add("hidden");
-    pauseIcon.classList.remove("hidden");
-
-    statusBadge.className = "status-pill running";
-    statusText.textContent = "RUNNING";
-
-    lapBtn.disabled = false;
-    resetBtn.disabled = false;
-
-    playSound("start");
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            handleTimeOut();
+        }
+    }, 1000);
 }
 
-// Pause Timer
-function pauseTimer() {
-    if (!isRunning) return;
+function updateTimerDisplay() {
+    timerSecondsEl.textContent = `${timeLeft}s`;
 
-    elapsedTime += performance.now() - startTime;
-    isRunning = false;
+    // SVG dashoffset calculation
+    const progress = (QUESTION_TIME_LIMIT - timeLeft) / QUESTION_TIME_LIMIT;
+    const offset = progress * TIMER_CIRCUMFERENCE;
+    timerRingProgress.style.strokeDashoffset = offset;
 
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-
-    renderDisplay();
-
-    // Update UI states
-    startPauseBtn.classList.remove("is-running");
-    startPauseText.textContent = "Resume";
-    playIcon.classList.remove("hidden");
-    pauseIcon.classList.add("hidden");
-
-    statusBadge.className = "status-pill paused";
-    statusText.textContent = "PAUSED";
-
-    lapBtn.disabled = true;
-
-    playSound("pause");
-}
-
-// Toggle Start / Pause
-function toggleStartPause() {
-    if (isRunning) {
-        pauseTimer();
+    // Visual indicators
+    timerPill.classList.remove("warning", "danger");
+    if (timeLeft <= 4) {
+        timerPill.classList.add("danger");
+        timerRingProgress.style.stroke = "#f43f5e";
+    } else if (timeLeft <= 8) {
+        timerPill.classList.add("warning");
+        timerRingProgress.style.stroke = "#f59e0b";
     } else {
-        startTimer();
+        timerRingProgress.style.stroke = "#6366f1";
     }
 }
 
-// Reset Stopwatch
-function resetStopwatch() {
-    if (isRunning) {
-        pauseTimer();
-    }
-
-    startTime = 0;
-    elapsedTime = 0;
-    lastLapTimestamp = 0;
-    laps = [];
-
-    // Reset Display & Ring
-    mainTimeDisplay.textContent = "00:00:00";
-    msDigitsDisplay.textContent = "00";
-    progressCircle.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
-
-    // Reset Buttons & States
-    startPauseBtn.classList.remove("is-running");
-    startPauseText.textContent = "Start";
-    playIcon.classList.remove("hidden");
-    pauseIcon.classList.add("hidden");
-
-    statusBadge.className = "status-pill";
-    statusText.textContent = "READY";
-
-    lapBtn.disabled = true;
-    resetBtn.disabled = true;
-    clearLapsBtn.disabled = true;
-    copyLapsBtn.disabled = true;
-
-    currentLapIndex.textContent = "1";
-    currentLapTime.textContent = "00:00.00";
-
-    // Clear Lap List & Stats
-    lapList.innerHTML = "";
-    lapEmptyState.classList.remove("hidden");
-    lapStatsSection.classList.add("hidden");
-    lapCountBadge.textContent = "0";
-
-    playSound("reset");
+function handleTimeOut() {
+    if (isAnswerConfirmed) return;
+    sfx.wrong();
+    messageEl.textContent = "⏰ Time's up! Check out the correct answer below.";
+    messageEl.classList.remove("hidden");
+    confirmAnswer(true); // timed out
 }
 
-// Record Lap
-function recordLap() {
-    if (!isRunning) return;
+// 7. Question Loader
+function loadQuestion() {
+    const q = questions[currentQuestionIndex];
+    isAnswerConfirmed = false;
+    userAnswers = [];
 
-    const currentTotal = elapsedTime + (performance.now() - startTime);
-    const lapDuration = currentTotal - lastLapTimestamp;
-    lastLapTimestamp = currentTotal;
+    // HUD Update
+    questionNumberEl.textContent = `${currentQuestionIndex + 1} / ${questions.length}`;
+    const progressPercent = ((currentQuestionIndex + 1) / questions.length) * 100;
+    progressBarEl.style.width = `${progressPercent}%`;
 
-    const lapNumber = laps.length + 1;
-    const lapData = {
-        id: lapNumber,
-        lapTime: lapDuration,
-        totalTime: currentTotal
-    };
+    // Reset Elements
+    messageEl.textContent = "";
+    messageEl.classList.add("hidden");
+    feedbackBox.classList.add("hidden");
+    optionsContainer.innerHTML = "";
+    textAnswerInput.value = "";
+    nextBtnText.textContent = "Confirm Answer";
 
-    laps.push(lapData);
-    currentLapIndex.textContent = `${lapNumber + 1}`;
-
-    renderLaps();
-    playSound("lap");
-}
-
-// Render Lap list & Statistics
-function renderLaps() {
-    if (laps.length === 0) {
-        lapEmptyState.classList.remove("hidden");
-        lapStatsSection.classList.add("hidden");
-        clearLapsBtn.disabled = true;
-        copyLapsBtn.disabled = true;
-        lapCountBadge.textContent = "0";
-        lapList.innerHTML = "";
-        return;
+    // Meta Badges
+    categoryBadge.textContent = q.category || "General";
+    if (q.type === "single") {
+        typeBadge.textContent = "Single Choice";
+    } else if (q.type === "multiple") {
+        typeBadge.textContent = "Multiple Choice";
+    } else if (q.type === "blank") {
+        typeBadge.textContent = "Fill in the Blank";
     }
 
-    lapEmptyState.classList.add("hidden");
-    clearLapsBtn.disabled = false;
-    copyLapsBtn.disabled = false;
-    lapCountBadge.textContent = `${laps.length}`;
+    // Question Title
+    questionTitle.textContent = q.question;
 
-    // Determine fastest & slowest laps (when 2 or more laps exist)
-    let fastestLap = null;
-    let slowestLap = null;
-    let totalLapTimes = 0;
-
-    if (laps.length >= 2) {
-        fastestLap = laps.reduce((prev, curr) => (curr.lapTime < prev.lapTime ? curr : prev));
-        slowestLap = laps.reduce((prev, curr) => (curr.lapTime > prev.lapTime ? curr : prev));
-        totalLapTimes = laps.reduce((sum, lap) => sum + lap.lapTime, 0);
-
-        const avgTime = totalLapTimes / laps.length;
-
-        // Update stats cards
-        fastestLapVal.textContent = formatTime(fastestLap.lapTime).short;
-        fastestLapNo.textContent = `Lap ${fastestLap.id}`;
-
-        slowestLapVal.textContent = formatTime(slowestLap.lapTime).short;
-        slowestLapNo.textContent = `Lap ${slowestLap.id}`;
-
-        avgLapVal.textContent = formatTime(avgTime).short;
-
-        lapStatsSection.classList.remove("hidden");
+    // Code Snippet Handling
+    if (q.codeSnippet) {
+        codeSnippetEl.textContent = q.codeSnippet;
+        codeSnippetContainer.classList.remove("hidden");
     } else {
-        lapStatsSection.classList.add("hidden");
+        codeSnippetContainer.classList.add("hidden");
     }
 
-    // Build lap list rows (newest on top)
-    lapList.innerHTML = "";
-    
-    // Iterate in reverse for latest first
-    for (let i = laps.length - 1; i >= 0; i--) {
-        const lap = laps[i];
-        const li = document.createElement("li");
-        li.className = "lap-item";
+    // Render Options or Input
+    if (q.type === "blank") {
+        optionsContainer.classList.add("hidden");
+        textAnswerContainer.classList.remove("hidden");
+        setTimeout(() => textAnswerInput.focus(), 150);
+    } else {
+        optionsContainer.classList.remove("hidden");
+        textAnswerContainer.classList.add("hidden");
 
-        let isFastest = fastestLap && lap.id === fastestLap.id;
-        let isSlowest = slowestLap && lap.id === slowestLap.id;
+        const letters = ["A", "B", "C", "D", "E"];
+        q.options.forEach((optText, idx) => {
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            btn.type = "button";
+            btn.dataset.index = idx;
 
-        if (isFastest) li.classList.add("is-fastest");
-        if (isSlowest) li.classList.add("is-slowest");
+            btn.innerHTML = `
+                <span class="option-tag">${letters[idx] || (idx + 1)}</span>
+                <span class="option-text">${optText}</span>
+            `;
 
-        // Lap Left: Number + optional tag
-        const leftDiv = document.createElement("div");
-        leftDiv.className = "lap-left";
+            btn.addEventListener("click", () => {
+                if (isAnswerConfirmed) return;
+                sfx.click();
+                selectOption(btn, idx, q.type);
+            });
 
-        const numSpan = document.createElement("span");
-        numSpan.className = "lap-number";
-        numSpan.textContent = `Lap ${String(lap.id).padStart(2, "0")}`;
-        leftDiv.appendChild(numSpan);
+            optionsContainer.appendChild(btn);
+        });
+    }
 
-        if (isFastest) {
-            const tag = document.createElement("span");
-            tag.className = "lap-tag";
-            tag.textContent = "Fastest";
-            leftDiv.appendChild(tag);
-        } else if (isSlowest) {
-            const tag = document.createElement("span");
-            tag.className = "lap-tag";
-            tag.textContent = "Slowest";
-            leftDiv.appendChild(tag);
+    // Start Timer
+    startTimer();
+}
+
+// 8. Option Selection
+function selectOption(button, index, type) {
+    messageEl.classList.add("hidden");
+
+    if (type === "single") {
+        userAnswers = [index];
+        document.querySelectorAll(".option-btn").forEach(b => b.classList.remove("selected"));
+        button.classList.add("selected");
+    } else if (type === "multiple") {
+        if (userAnswers.includes(index)) {
+            userAnswers = userAnswers.filter(i => i !== index);
+            button.classList.remove("selected");
+        } else {
+            userAnswers.push(index);
+            button.classList.add("selected");
+        }
+    }
+}
+
+// Enter Key on Text Input
+textAnswerInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        if (!isAnswerConfirmed) {
+            handleActionClick();
+        }
+    }
+});
+
+textSubmitBtn.addEventListener("click", () => {
+    if (!isAnswerConfirmed) {
+        handleActionClick();
+    }
+});
+
+// 9. Answer Evaluation & Feedback
+function confirmAnswer(isTimeout = false) {
+    clearInterval(timer);
+    isAnswerConfirmed = true;
+
+    const q = questions[currentQuestionIndex];
+    let isCorrect = false;
+    let userGivenText = "";
+
+    if (q.type === "blank") {
+        const inputVal = textAnswerInput.value.trim().toLowerCase();
+        userGivenText = inputVal || "(No answer)";
+        textAnswerInput.disabled = true;
+
+        if (!isTimeout && inputVal !== "") {
+            isCorrect = q.answer.some(ans => inputVal === ans.toLowerCase());
+        }
+    } else {
+        const buttons = document.querySelectorAll(".option-btn");
+        buttons.forEach(b => (b.disabled = true));
+
+        if (!isTimeout) {
+            const correctSorted = [...q.answer].sort((a, b) => a - b);
+            const userSorted = [...userAnswers].sort((a, b) => a - b);
+            isCorrect =
+                correctSorted.length === userSorted.length &&
+                correctSorted.every((v, i) => v === userSorted[i]);
+
+            userGivenText = userAnswers.map(idx => q.options[idx]).join(", ") || "(No option selected)";
+        } else {
+            userGivenText = "(Time expired)";
         }
 
-        // Lap Middle: Lap Interval duration
-        const deltaSpan = document.createElement("span");
-        deltaSpan.className = "lap-delta";
-        deltaSpan.textContent = formatTime(lap.lapTime).short;
+        // Highlight options
+        buttons.forEach((btn, idx) => {
+            if (q.answer.includes(idx)) {
+                btn.classList.add("correct");
+            } else if (userAnswers.includes(idx)) {
+                btn.classList.add("wrong");
+            }
+        });
+    }
 
-        // Lap Right: Overall Total Time
-        const totalSpan = document.createElement("span");
-        totalSpan.className = "lap-total";
-        totalSpan.textContent = formatTime(lap.totalTime).short;
+    // Score & Streak Calculation
+    if (isCorrect) {
+        sfx.correct();
+        correctCount++;
+        currentStreak++;
+        if (currentStreak > maxStreak) maxStreak = currentStreak;
 
-        li.appendChild(leftDiv);
-        li.appendChild(deltaSpan);
-        li.appendChild(totalSpan);
+        // Base points + Streak bonus + Speed bonus
+        const streakBonus = (currentStreak - 1) * 20;
+        const speedBonus = Math.floor(timeLeft * 4);
+        const questionPoints = 100 + streakBonus + speedBonus;
+        totalScore += questionPoints;
 
-        lapList.appendChild(li);
+        // Animate streak indicator
+        streakCounterEl.textContent = `🔥 ${currentStreak}`;
+        streakCounterEl.classList.remove("streak-bump");
+        void streakCounterEl.offsetWidth; // trigger reflow
+        streakCounterEl.classList.add("streak-bump");
+
+        // Display correct feedback
+        feedbackBox.className = "feedback-box correct-feedback";
+        feedbackIcon.textContent = "✓";
+        feedbackTitle.textContent = `Correct! +${questionPoints} pts (⚡ Streak: ${currentStreak}x)`;
+    } else {
+        sfx.wrong();
+        currentStreak = 0;
+        streakCounterEl.textContent = `🔥 0`;
+
+        feedbackBox.className = "feedback-box wrong-feedback";
+        feedbackIcon.textContent = "✕";
+        feedbackTitle.textContent = isTimeout ? "Time Expired!" : "Incorrect Answer";
+    }
+
+    liveScoreEl.textContent = `${totalScore} pts`;
+
+    // Educational Explanation
+    feedbackExplanation.textContent = q.explanation || "Great effort! Learn and keep moving forward.";
+    feedbackBox.classList.remove("hidden");
+
+    // Save for Review History
+    let correctDisplay = "";
+    if (q.type === "blank") {
+        correctDisplay = q.answer[0];
+    } else {
+        correctDisplay = q.answer.map(idx => q.options[idx]).join(", ");
+    }
+
+    quizHistory.push({
+        questionNumber: currentQuestionIndex + 1,
+        question: q.question,
+        category: q.category,
+        userAnswer: userGivenText,
+        correctAnswer: correctDisplay,
+        isCorrect: isCorrect,
+        explanation: q.explanation
+    });
+
+    // Update Action Button
+    if (currentQuestionIndex === questions.length - 1) {
+        nextBtnText.textContent = "View Final Results";
+    } else {
+        nextBtnText.textContent = "Next Question";
     }
 }
 
-// Clear all recorded laps without resetting stopwatch
-function clearAllLaps() {
-    if (laps.length === 0) return;
-    laps = [];
-    currentLapIndex.textContent = "1";
-    renderLaps();
-    showToast("Lap records cleared");
+// 10. Next / Action Button Handler
+function handleActionClick() {
+    const q = questions[currentQuestionIndex];
+
+    if (!isAnswerConfirmed) {
+        // Validate user input before confirming
+        if (q.type === "blank") {
+            const val = textAnswerInput.value.trim();
+            if (!val) {
+                sfx.click();
+                messageEl.textContent = "⚠️ Please type your answer before confirming!";
+                messageEl.classList.remove("hidden");
+                return;
+            }
+        } else {
+            if (userAnswers.length === 0) {
+                sfx.click();
+                messageEl.textContent = "⚠️ Please select an option to continue!";
+                messageEl.classList.remove("hidden");
+                return;
+            }
+        }
+
+        confirmAnswer(false);
+    } else {
+        // Advance to next question or show results
+        sfx.click();
+        currentQuestionIndex++;
+
+        if (currentQuestionIndex < questions.length) {
+            loadQuestion();
+        } else {
+            showFinalResults();
+        }
+    }
 }
 
-// Copy Laps to Clipboard
-function copyLapsToClipboard() {
-    if (laps.length === 0) return;
+nextBtn.addEventListener("click", handleActionClick);
 
-    let text = "=== ProChronos Lap Records ===\n";
-    text += `Total Laps: ${laps.length}\n`;
-    text += "Lap #\tSplit Time\tTotal Time\n";
-    text += "--------------------------------------\n";
+// 11. Results Screen & Confetti
+function showFinalResults() {
+    clearInterval(timer);
+    sfx.fanfare();
 
-    laps.forEach(lap => {
-        text += `Lap ${lap.id}\t${formatTime(lap.lapTime).full}\t${formatTime(lap.totalTime).full}\n`;
-    });
+    questionSection.classList.add("hidden");
+    quizHud.classList.add("hidden");
+    resultSection.classList.remove("hidden");
 
-    navigator.clipboard.writeText(text).then(() => {
-        showToast("Laps copied to clipboard! 📋");
-    }).catch(() => {
-        showToast("Failed to copy laps");
-    });
-}
+    const totalSeconds = Math.round((Date.now() - quizStartTime) / 1000);
+    const accuracy = Math.round((correctCount / questions.length) * 100);
 
-// Event Listeners
-startPauseBtn.addEventListener("click", toggleStartPause);
-lapBtn.addEventListener("click", recordLap);
-resetBtn.addEventListener("click", resetStopwatch);
-clearLapsBtn.addEventListener("click", clearAllLaps);
-copyLapsBtn.addEventListener("click", copyLapsToClipboard);
+    // Percentage Circle Animation
+    scorePercentageNum.textContent = `${accuracy}%`;
+    const scoreCircleCircumference = 314.16; // 2 * PI * 50
+    const targetOffset = scoreCircleCircumference - (accuracy / 100) * scoreCircleCircumference;
+    setTimeout(() => {
+        scoreSvgBar.style.strokeDashoffset = targetOffset;
+        if (accuracy >= 80) {
+            scoreSvgBar.style.stroke = "#10b981";
+        } else if (accuracy >= 50) {
+            scoreSvgBar.style.stroke = "#6366f1";
+        } else {
+            scoreSvgBar.style.stroke = "#f43f5e";
+        }
+    }, 200);
 
-// Keyboard Shortcuts Listener
-window.addEventListener("keydown", (e) => {
-    // Avoid triggering when focused on inputs or editable fields
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
-        return;
+    // Rank & Headline
+    if (accuracy === 100) {
+        resultTrophy.textContent = "🏆";
+        resultHeadline.textContent = "Web Grandmaster!";
+        resultTagline.textContent = "Flawless performance! You know your web technologies inside and out.";
+    } else if (accuracy >= 75) {
+        resultTrophy.textContent = "🌟";
+        resultHeadline.textContent = "Senior Developer!";
+        resultTagline.textContent = "Excellent work! You have strong core fundamentals and speed.";
+    } else if (accuracy >= 50) {
+        resultTrophy.textContent = "🚀";
+        resultHeadline.textContent = "Frontend Explorer!";
+        resultTagline.textContent = "Good job! A little more practice and you will master everything.";
+    } else {
+        resultTrophy.textContent = "💡";
+        resultHeadline.textContent = "Apprentice Coder";
+        resultTagline.textContent = "Every master was once a beginner. Review the answers and try again!";
     }
 
-    if (e.code === "Space") {
-        e.preventDefault();
-        toggleStartPause();
-    } else if (e.key === "l" || e.key === "L") {
-        e.preventDefault();
-        if (isRunning) recordLap();
-    } else if (e.key === "r" || e.key === "R") {
-        e.preventDefault();
-        if (elapsedTime > 0 || isRunning) resetStopwatch();
-    } else if (e.key === "m" || e.key === "M") {
-        e.preventDefault();
-        soundToggleBtn.click();
+    // Populate Detailed Stats
+    finalPointsEl.textContent = `${totalScore} pts`;
+    finalCorrectEl.textContent = `${correctCount} / ${questions.length}`;
+    finalStreakEl.textContent = `${maxStreak}x`;
+    finalTimeEl.textContent = `${totalSeconds}s`;
+
+    // Populate Review Accordion
+    renderReviewSection();
+
+    // Trigger Canvas Confetti if score >= 50%
+    if (accuracy >= 50) {
+        triggerConfetti();
+    }
+}
+
+// 12. Review Answers Accordion
+function renderReviewSection() {
+    reviewContainer.innerHTML = "";
+
+    quizHistory.forEach(item => {
+        const div = document.createElement("div");
+        div.className = `review-item ${item.isCorrect ? "is-correct" : "is-wrong"}`;
+
+        div.innerHTML = `
+            <div class="review-q-title">${item.questionNumber}. ${item.question}</div>
+            <div class="review-ans-row user-ans">
+                <strong>Your Answer:</strong> ${item.userAnswer} ${item.isCorrect ? "✅" : "❌"}
+            </div>
+            ${!item.isCorrect ? `
+                <div class="review-ans-row correct-ans">
+                    <strong>Correct Answer:</strong> ${item.correctAnswer}
+                </div>
+            ` : ""}
+            <div class="review-explanation">
+                <strong>💡 Tip:</strong> ${item.explanation}
+            </div>
+        `;
+
+        reviewContainer.appendChild(div);
+    });
+}
+
+toggleReviewBtn.addEventListener("click", () => {
+    sfx.click();
+    const isHidden = reviewContainer.classList.contains("hidden");
+    if (isHidden) {
+        reviewContainer.classList.remove("hidden");
+        reviewArrow.classList.add("open");
+    } else {
+        reviewContainer.classList.add("hidden");
+        reviewArrow.classList.remove("open");
     }
 });
 
-// Initial display setup
-renderDisplay();
+// 13. Restart Quiz
+restartBtn.addEventListener("click", () => {
+    sfx.click();
+    currentQuestionIndex = 0;
+    userAnswers = [];
+    totalScore = 0;
+    correctCount = 0;
+    currentStreak = 0;
+    maxStreak = 0;
+    quizHistory = [];
+    quizStartTime = Date.now();
+
+    liveScoreEl.textContent = "0 pts";
+    streakCounterEl.textContent = "🔥 0";
+
+    resultSection.classList.add("hidden");
+    reviewContainer.classList.add("hidden");
+    reviewArrow.classList.remove("open");
+    questionSection.classList.remove("hidden");
+    quizHud.classList.remove("hidden");
+
+    loadQuestion();
+});
+
+// 14. Share / Copy Score to Clipboard
+shareBtn.addEventListener("click", () => {
+    sfx.click();
+    const accuracy = Math.round((correctCount / questions.length) * 100);
+    const shareText = `⚡ DevQuiz Pro Result:\nScore: ${totalScore} pts (${accuracy}%)\nCorrect: ${correctCount}/${questions.length}\nBest Streak: ${maxStreak}x 🔥\nTest your web dev skills!`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareText).then(() => {
+            showToast("Score copied to clipboard! 📋");
+        }).catch(() => {
+            fallbackCopy(shareText);
+        });
+    } else {
+        fallbackCopy(shareText);
+    }
+});
+
+function fallbackCopy(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand("copy");
+        showToast("Score copied to clipboard! 📋");
+    } catch (err) {
+        showToast("Could not copy score.");
+    }
+    document.body.removeChild(textArea);
+}
+
+function showToast(text) {
+    toastEl.textContent = text;
+    toastEl.classList.remove("hidden");
+    setTimeout(() => {
+        toastEl.classList.add("hidden");
+    }, 2400);
+}
+
+// 15. Canvas Confetti Animation
+function triggerConfetti() {
+    const canvas = document.getElementById("confetti-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const colors = ["#6366f1", "#ec4899", "#06b6d4", "#10b981", "#f59e0b", "#a855f7"];
+
+    for (let i = 0; i < 90; i++) {
+        particles.push({
+            x: canvas.width / 2,
+            y: canvas.height * 0.45,
+            vx: (Math.random() - 0.5) * 14,
+            vy: (Math.random() - 0.7) * 15,
+            size: Math.random() * 8 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 12,
+            opacity: 1
+        });
+    }
+
+    let animationFrame;
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+
+        particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.35; // gravity
+            p.rotation += p.rotationSpeed;
+            p.opacity -= 0.009;
+
+            if (p.opacity > 0) {
+                active = true;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = Math.max(0, p.opacity);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+                ctx.restore();
+            }
+        });
+
+        if (active) {
+            animationFrame = requestAnimationFrame(render);
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            cancelAnimationFrame(animationFrame);
+        }
+    }
+
+    render();
+}
+
+// 16. Keyboard Accessibility
+window.addEventListener("keydown", (e) => {
+    // Sound mute toggle
+    if ((e.key === "m" || e.key === "M") && document.activeElement !== textAnswerInput) {
+        sfx.toggle();
+        updateSoundUI();
+        showToast(sfx.enabled ? "Sound: ON 🔊" : "Sound: Muted 🔇");
+        return;
+    }
+
+    // Number keys 1-4 for option selection
+    if (["1", "2", "3", "4"].includes(e.key) && document.activeElement !== textAnswerInput) {
+        const idx = parseInt(e.key, 10) - 1;
+        const buttons = document.querySelectorAll(".option-btn");
+        if (buttons[idx] && !isAnswerConfirmed) {
+            buttons[idx].click();
+        }
+        return;
+    }
+
+    // Enter for next/confirm
+    if (e.key === "Enter" && document.activeElement !== textAnswerInput) {
+        if (!resultSection.classList.contains("hidden")) {
+            restartBtn.click();
+        } else {
+            handleActionClick();
+        }
+    }
+});
+
+// Resize handler for canvas
+window.addEventListener("resize", () => {
+    const canvas = document.getElementById("confetti-canvas");
+    if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+});
+
+// 17. Initialization
+quizStartTime = Date.now();
+loadQuestion();
